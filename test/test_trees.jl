@@ -16,12 +16,26 @@ nodes = N[
 tree = ClusterTrees.SimpleTrees.SimpleTree(nodes)
 ClusterTrees.print_tree(tree)
 
-chdit = ClusterTrees.children(tree)
+@test data(tree, root(tree)) == "a"
+@test collect(data(tree,ch) for ch in ClusterTrees.children(tree, root(tree))) == ["b","e"]
+@test collect(data(tree,lv) for lv in ClusterTrees.leaves(tree, root(tree))) == ["c","d","f","h","i"]
 
-@test data(tree) == "a"
-@test collect(data(ch) for ch in ClusterTrees.children(tree)) == ["b","e"]
-@test collect(data(lv) for lv in ClusterTrees.leaves(tree)) == ["c","d","f","h","i"]
+mtree = ClusterTrees.mutable(tree)
+ClusterTrees.print_tree(mtree)
 
+# n1 = ClusterTrees.root(mtree)
+# n2 = first(ClusterTrees.children(mtree,n1))
+# ClusterTrees.SimpleTrees.insert_child!(mtree, n2, "z")
+
+chd = ClusterTrees.children(mtree, ClusterTrees.root(mtree))
+i1 = ClusterTrees.SimpleTrees.start(chd)
+n1, i2 = ClusterTrees.SimpleTrees.next(chd, i1)
+n2, i3 = ClusterTrees.SimpleTrees.next(chd, i2)
+ClusterTrees.SimpleTrees.insert!(chd, "Q", i3)
+
+ClusterTrees.print_tree(tree)
+A = [ClusterTrees.data(mtree, n) for n in collect(ClusterTrees.DepthFirstIterator(mtree, root(mtree)))]
+@test A == ["c","d","b","f","h","i","g","e","Q","a"]
 
 const N2 = ClusterTrees.PointerBasedTrees.Node
 nodes2 = N2[
