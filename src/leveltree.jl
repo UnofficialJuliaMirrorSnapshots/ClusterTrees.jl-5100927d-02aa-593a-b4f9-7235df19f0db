@@ -22,6 +22,15 @@ struct LevelledTree{D,P,T} <: ClusterTrees.PointerBasedTrees.APBTree
     levels::Vector{Int}
 end
 
+function LevelledTree(center, size, data)
+    root = HNode(
+        ClusterTrees.PointerBasedTrees.Node(
+            ClusterTrees.LevelledTrees.Data(0,data),
+            0, 0, 0, 0),
+        0)
+    LevelledTree([root], 1, center, size, Int[1])
+end
+
 ClusterTrees.root(tree::LevelledTree) = tree.root
 ClusterTrees.data(tree::LevelledTree, node=ClusterTrees.root(tree)) = tree.nodes[node].node.data
 
@@ -153,21 +162,29 @@ function ClusterTrees.route!(tree::LevelledTree, state, destination)
     point = destination.target_point
     smallest_box_size = destination.smallest_box_size
 
-    node_idx, center, size, sfc_state = state
+    # Are we done?
+    node_idx, sector, center, size, sfc_state = state
     size <= smallest_box_size && return state
+
+    # Compute new state
     target_sector, target_center, target_size = sector_center_size(point, center, size)
-    target_pos = hilbert_positions[sfc_state][target_sector+1] + 1
-    target_sfc_state = hilbert_states[sfc_state][target_sector+1] + 1
+    target_sfc_state = hilbert_states[sfc_state][sector+1] + 1
 
     chds = ClusterTrees.children(tree, node_idx)
     pos = start(chds)
     while !done(chds, pos)
         child, newpos = next(chds, pos)
+
+        # Did we move past where the destination can be found? It so, give up!
         child_sector = ClusterTrees.data(tree,child).sector
-        child_pos = hilbert_positions[sfc_state][child_sector+1]+1
+        target_pos = hilbert_positions[target_sfc_state][target_sector+1] + 1
+        child_pos = hilbert_positions[target_sfc_state][child_sector+1]+1
+        # print(child_pos, "-")
         target_pos < child_pos  && break
+
+        # Did we find the route to the desitination? If so, take it!
         if child_sector == target_sector
-            return (child, target_center, target_size, target_sfc_state)
+            return (child, target_sector, target_center, target_size, target_sfc_state)
         end
         pos = newpos
     end
@@ -175,7 +192,17 @@ function ClusterTrees.route!(tree::LevelledTree, state, destination)
     data = Data(target_sector, Int[])
     new_node_idx = insert!(chds, data, pos)
 
-    return new_node_idx, target_center, target_size, target_sfc_state
+    return new_node_idx, target_sector, target_center, target_size, target_sfc_state
+end
+
+
+function rootstate(tree::LevelledTree, destination)
+    node = ClusterTrees.root(tree)
+    root_sector = 2
+    root_center = tree.center
+    root_size = tree.halfsize
+    root_sfc_state = 2
+    return node, root_sector, root_center, root_size, root_sfc_state
 end
 
 
